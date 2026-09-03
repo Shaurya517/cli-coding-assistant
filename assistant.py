@@ -8,7 +8,14 @@ def main():
     print("CLI Assistant (type 'exit' to quit)")
 
     while True:
-        user_input = input("\nYou: ")
+        try:
+            user_input = input("\nYou: ")
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+
+        if not user_input.strip():
+            continue  # skip empty input, don't waste an API call
 
         if user_input.strip().lower() == "exit":
             break

@@ -2,6 +2,24 @@ import os
 import difflib
 
 
+def ask_yes_no(prompt: str) -> bool:
+    """Ask a y/n question, looping until a clear answer is given.
+    Returns True for yes, False for no. Treats Ctrl+C as 'no'."""
+    while True:
+        try:
+            answer = input(prompt).strip().lower()
+        except KeyboardInterrupt:
+            print("\n[Cancelled]")
+            return False
+
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+
+        print("Please answer 'y' or 'n'.")
+
+
 def read_file(path: str) -> str:
     """Read and return the contents of a file at the given path."""
     try:
@@ -45,8 +63,7 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
     print("".join(diff))
     print("------------------------")
 
-    confirm = input("Apply this change? (y/n): ").strip().lower()
-    if confirm != "y":
+    if not ask_yes_no("Apply this change? (y/n): "):
         return ("The user REJECTED this edit and does not want it applied. "
                 "Do not attempt this same edit again. If you believe this edit is "
                 "still necessary, explain why to the user and ask them directly "
@@ -68,8 +85,7 @@ def create_file(path: str, content: str) -> str:
     print(content)
     print("------------------------")
 
-    confirm = input(f"Create '{path}'? (y/n): ").strip().lower()
-    if confirm != "y":
+    if not ask_yes_no(f"Create '{path}'? (y/n): "):
         return ("The user REJECTED creating this file. Do not attempt to create it "
                 "again. Ask the user directly if they want something different.")
 
@@ -90,7 +106,12 @@ def delete_file(path: str) -> str:
     print(f"\n!!! DESTRUCTIVE ACTION: this will permanently delete '{path}' !!!")
     print("This cannot be undone by this tool.")
 
-    confirm = input(f"Type the filename exactly to confirm deletion of '{path}': ").strip()
+    try:
+        confirm = input(f"Type the filename exactly to confirm deletion of '{path}': ").strip()
+    except KeyboardInterrupt:
+        print("\n[Cancelled]")
+        return "The user cancelled the deletion (Ctrl+C). Do not retry."
+
     if confirm != path:
         return ("The user did NOT confirm deletion (typed filename did not match). "
                 "Do not attempt to delete this file again. Ask the user directly "
