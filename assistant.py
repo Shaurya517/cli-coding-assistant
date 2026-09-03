@@ -55,10 +55,15 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
     print("".join(diff))
     print("------------------------")
 
-    # --- Confirmation placeholder (Step 5 will make this a real gate) ---
+    # --- Confirmation gate ---
     confirm = input("Apply this change? (y/n): ").strip().lower()
     if confirm != "y":
-        return "Edit cancelled by user."
+        # Be EXPLICIT that this was a deliberate rejection, not a transient
+        # failure — otherwise the model may just retry the same edit again.
+        return ("The user REJECTED this edit and does not want it applied. "
+                "Do not attempt this same edit again. If you believe this edit is "
+                "still necessary, explain why to the user and ask them directly "
+                "instead of retrying silently.")
 
     with open(path, "w") as f:
         f.write(new_content)
@@ -98,7 +103,7 @@ edit_file_tool = {
 tools = types.Tool(function_declarations=[read_file_tool, edit_file_tool])
 config = types.GenerateContentConfig(tools=[tools])
 
-chat = client.chats.create(model="gemini-3.6-flash", config=config)
+chat = client.chats.create(model="gemini-3.1-flash-lite", config=config)
 
 
 def send_message_with_retry(chat, message, max_retries=3):
@@ -116,7 +121,7 @@ def send_message_with_retry(chat, message, max_retries=3):
                     "Daily free-tier quota exceeded for this model. "
                     "Wait for it to reset, or switch to a different model."
                 )
-            raise  # some other client error (e.g. bad request) — don't hide it, re-raise as-is
+            raise
     raise RuntimeError("Gemini API is currently unavailable after several retries. Try again in a bit.")
 
 
@@ -136,8 +141,6 @@ def main():
             continue
 
         # Keep handling function calls until the model gives us a final text answer.
-        # A single user request might require multiple tool calls in sequence
-        # (e.g. read a file, THEN edit it).
         while True:
             function_call = None
             for part in response.candidates[0].content.parts:
@@ -146,7 +149,7 @@ def main():
                     break
 
             if not function_call:
-                break  # model gave a real text answer, we're done
+                break
 
             print(f"\n[Assistant wants to call: {function_call.name}({dict(function_call.args)})]")
 
