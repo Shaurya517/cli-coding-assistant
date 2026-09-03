@@ -1,3 +1,4 @@
+import os
 import difflib
 
 
@@ -57,6 +58,52 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
     return f"Successfully edited '{path}'."
 
 
+def create_file(path: str, content: str) -> str:
+    """Create a new file with the given content. Refuses to overwrite an existing file."""
+    if os.path.exists(path):
+        return (f"Error: '{path}' already exists. Use edit_file if you want to "
+                f"modify it, or choose a different path.")
+
+    print(f"\n--- Proposed new file: {path} ---")
+    print(content)
+    print("------------------------")
+
+    confirm = input(f"Create '{path}'? (y/n): ").strip().lower()
+    if confirm != "y":
+        return ("The user REJECTED creating this file. Do not attempt to create it "
+                "again. Ask the user directly if they want something different.")
+
+    try:
+        with open(path, "w") as f:
+            f.write(content)
+    except Exception as e:
+        return f"Error creating file: {e}"
+
+    return f"Successfully created '{path}'."
+
+
+def delete_file(path: str) -> str:
+    """Delete a file, after strong explicit confirmation. This is irreversible."""
+    if not os.path.exists(path):
+        return f"Error: '{path}' does not exist, nothing to delete."
+
+    print(f"\n!!! DESTRUCTIVE ACTION: this will permanently delete '{path}' !!!")
+    print("This cannot be undone by this tool.")
+
+    confirm = input(f"Type the filename exactly to confirm deletion of '{path}': ").strip()
+    if confirm != path:
+        return ("The user did NOT confirm deletion (typed filename did not match). "
+                "Do not attempt to delete this file again. Ask the user directly "
+                "if they still want it deleted.")
+
+    try:
+        os.remove(path)
+    except Exception as e:
+        return f"Error deleting file: {e}"
+
+    return f"Successfully deleted '{path}'."
+
+
 # --- Schemas: describe the functions above to Gemini ---
 
 read_file_tool = {
@@ -88,12 +135,39 @@ edit_file_tool = {
     }
 }
 
+create_file_tool = {
+    "name": "create_file",
+    "description": "Create a new file with the given content. Fails if the file already exists.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "The relative path of the new file."},
+            "content": {"type": "string", "description": "The full content to write to the new file."}
+        },
+        "required": ["path", "content"]
+    }
+}
+
+delete_file_tool = {
+    "name": "delete_file",
+    "description": "Permanently delete a file. This is irreversible and requires strong user confirmation.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "The relative path of the file to delete."}
+        },
+        "required": ["path"]
+    }
+}
+
 # A lookup table mapping tool names to their actual Python functions.
 # This lets assistant.py dispatch calls without a long if/elif chain,
 # and makes adding new tools later a one-line addition here.
 TOOL_FUNCTIONS = {
     "read_file": read_file,
     "edit_file": edit_file,
+    "create_file": create_file,
+    "delete_file": delete_file,
 }
 
-ALL_TOOL_SCHEMAS = [read_file_tool, edit_file_tool]
+ALL_TOOL_SCHEMAS = [read_file_tool, edit_file_tool, create_file_tool, delete_file_tool]

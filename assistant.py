@@ -19,7 +19,6 @@ def main():
             print(f"\n[Error: {e}]")
             continue
 
-        # Keep handling function calls until the model gives us a final text answer.
         while True:
             function_call = None
             for part in response.candidates[0].content.parts:
